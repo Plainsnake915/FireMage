@@ -30,7 +30,7 @@ class FireMage:
                 (self.pos + self.size * self.direction),
             ],)
         for fireball in fireballs:
-            fireball.update()
+            fireball.update(enemies)
             fireball.draw(screen)
 
 class Fireball:
@@ -41,20 +41,98 @@ class Fireball:
         self.size = 10
         self.pierce = pierce
 
-    def update(self):
+    def update(self, targets):
         self.pos += self.direction * self.speed
         if self.pos.x < 0 or self.pos.x > WIDTH or self.pos.y < 0 or self.pos.y > HEIGHT:
             fireballs.remove(self)
+        for target in targets:
+            if self.pos.distance_to(target.pos) < self.size + target.size:
+                target.health -= 1
+                target.size = 10 * target.health
+                if target.health <= 0:
+                    targets.remove(target)
+                self.pierce -= 1
         if self.pierce <= 0:
             fireballs.remove(self)
 
     def draw(self, screen):
         pygame.draw.circle(screen, (255, 165, 0), (int(self.pos.x), int(self.pos.y)), self.size)
 
+class enemy:
+    def __init__(self, x, y, speed, direction, health):
+        self.pos = pygame.math.Vector2(x, y)
+        self.velocity = pygame.math.Vector2(speed * math.cos(direction), speed * math.sin(direction))
+        self.direction = pygame.math.Vector2(math.cos(direction), math.sin(direction))
+        self.size = 10*health
+        self.state = 'PATROL'
+        self.health = health
+        self.color = (255, 255, 255)
+        self.knockback = 5
 
+    def move(self):
+        if self.state == 'PATROL':
+            self.pos += self.velocity
+            
+        elif self.state == 'CHASE':
+            self.pos += self.direction * self.velocity.length()
 
+    def bounce(self):
+        if self.pos.x - self.size < 0 or self.pos.x + self.size > WIDTH:
+            self.velocity.x = -self.velocity.x
+            self.pos.x = max(self.size, min(self.pos.x, WIDTH - self.size))
+
+        if self.pos.y - self.size < 0 or self.pos.y + self.size > HEIGHT:
+            self.velocity.y = -self.velocity.y
+            self.pos.y = max(self.size, min(self.pos.y, HEIGHT - self.size))
+
+    def vision(self, FireMage):
+        distance = pygame.math.Vector2(FireMage.pos - self.pos)
+        dot = self.direction.dot(distance.normalize())
+        if dot > 0.5 and distance.length() < 200:
+            self.state = 'CHASE'
+            self.direction = distance.normalize()
+            if distance.length() < 20:
+                FireMage.pos += self.direction * -self.knockback
+        else:
+            self.state = 'PATROL'
+            self.direction = self.velocity.normalize()
+        
+    def draw(self):
+        self.move()
+        self.bounce()
+        pygame.draw.rect(
+            screen,
+            self.color,
+            pygame.Rect((int(self.pos.x), int(self.pos.y)), (self.size, self.size))
+        )
+        pygame.draw.line(
+            screen,
+            (0, 255, 0),
+            (int(self.pos.x + self.size / 2), int(self.pos.y + self.size / 2)),
+            (int(self.pos.x + self.size / 2 + self.direction.x * 20), int(self.pos.y + self.size / 2 + self.direction.y * 20)),
+            2
+        )
+
+def spawner(wave, enemies):
+    
+    for _ in range(wave*5):
+        x = random.randint(0, WIDTH)
+        y = random.randint(0, HEIGHT)
+        direction = 0
+        if x < WIDTH // 2:
+            x = 0
+        else:
+            x = WIDTH
+            direction = math.pi
+        speed = random.uniform(1, 3)
+        
+        health = random.randint(1, 3)
+        enemies.append(enemy(x, y, speed, direction, health))
+    
 
 async def main():
+    global fireballs, screen, enemies
+    enemies = []
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("Fire Mage")
@@ -66,14 +144,23 @@ async def main():
     speed = .06
     fire_rate = 1
     next_shot_time = 0
-    global fireballs
+    wave = 1
+    
     fireballs = []
     running = True
 
+    spawner(wave, enemies)
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+
+        last_spawn_time = pygame.time.get_ticks()
+        if pygame.time.get_ticks() - last_spawn_time > 5000:
+            spawner(wave, enemies)
+            last_spawn_time = pygame.time.get_ticks()
+            wave += 1
+        
 
         keys = pygame.key.get_pressed()
         acceleration = -.03*velocity
@@ -105,6 +192,9 @@ async def main():
         screen.fill((0, 155, 50))
         
         fire_mage.draw(screen)
+        for enemy in enemies:
+            enemy.vision(fire_mage)
+            enemy.draw()    
         pygame.display.flip()
 
         clock.tick(120) 
