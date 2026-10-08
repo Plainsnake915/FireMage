@@ -11,15 +11,17 @@ WIDTH, HEIGHT = 900, 600
 
 
 class FireMage:
-    def __init__(self, x, y):
+    def __init__(self, x, y, health):
         self.pos = pygame.math.Vector2(x, y)
         self.direction = pygame.math.Vector2(1, 0)
         self.size = 25
+        self.health = health
 
-    def shoot(self, num_fireballs):
-        for _ in range(num_fireballs):
+    def shoot(self, num_fireballs, pierce):
+        fireballs.append(Fireball(self.pos.x, self.pos.y, self.direction, pierce))
+        for _ in range(num_fireballs - 1):
             direction = self.direction.rotate(random.uniform(-10, 10))
-            fireball = Fireball(self.pos.x, self.pos.y, direction, 1)
+            fireball = Fireball(self.pos.x, self.pos.y, direction, pierce)
             fireballs.append(fireball)
     def draw(self, screen):
         #screen.blit(self.image, (self.x, self.y))
@@ -93,6 +95,7 @@ class enemy:
             self.direction = distance.normalize()
             if distance.length() < 20:
                 FireMage.pos += distance.normalize() * self.knockback
+                FireMage.health -= 1
         else:
             self.state = 'PATROL'
             self.direction = self.velocity.normalize()
@@ -137,12 +140,15 @@ async def main():
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("Fire Mage")
     clock = pygame.time.Clock()
-    fire_mage = FireMage(WIDTH//2 - 50, HEIGHT//2 - 50)
+    fire_mage = FireMage(WIDTH//2 - 50, HEIGHT//2 - 50, 3)
     velocity = pygame.math.Vector2(0, 0)
     drag = -.03
     max_speed = 1
     speed = .06
     fire_rate = 1
+    projectiles = 1
+    pierce = 1
+    
     next_shot_time = 0
     wave = 1
     wave_time = 30000
@@ -152,6 +158,8 @@ async def main():
 
     spawner(wave, enemies)
     while running:
+        if fire_mage.health <= 0:
+            running = False
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -183,7 +191,7 @@ async def main():
             xacceleration = pygame.math.Vector2(1, 0) * speed
         current_time = pygame.time.get_ticks()
         if keys[pygame.K_SPACE] and current_time >= next_shot_time:
-            fire_mage.shoot(1)
+            fire_mage.shoot(projectiles, pierce)
             next_shot_time = current_time + fire_rate * 1000
         acceleration += yacceleration + xacceleration
         velocity += acceleration
@@ -197,10 +205,30 @@ async def main():
             enemy.vision(fire_mage)
             enemy.draw()    
         pygame.display.flip()
+        
 
         clock.tick(120) 
         await asyncio.sleep(0)  # Allow other tasks to run
-
+    dead = True
+    reset = False
+    while dead:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                dead = False
+        screen.fill((0, 0, 0))
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_r]:
+            dead = False
+            reset = True
+            
+        font = pygame.font.Font(None, 74)
+        text = font.render("Game Over, Press R to Restart", True, (255, 0, 0))
+        text_rect = text.get_rect(center=(WIDTH/2, HEIGHT/2))
+        screen.blit(text, text_rect)
+        pygame.display.flip()
+        await asyncio.sleep(0)  # Allow other tasks to run
+    if reset:
+        await main()
     pygame.quit()
 asyncio.run(main())
 
