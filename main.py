@@ -127,11 +127,26 @@ def spawner(wave, enemies):
         else:
             x = WIDTH
             direction = math.pi
-        speed = .5
+        speed = .5 + .2*wave
         
         health = random.randint(1, 3)
         enemies.append(enemy(x, y, speed, direction, health))
     
+def upgrade_damage(projectiles, pierce):
+    projectiles += 1
+    pierce += 1
+    return projectiles, pierce
+
+def upgrade_speed(speed, max_speed, fire_rate):
+    speed += .06
+    max_speed += .5
+
+    fire_rate -= .1
+    return speed, max_speed, fire_rate
+
+def upgrade_health(health):
+    health += 1
+    return health
 
 async def main():
     global fireballs, screen, enemies
@@ -151,21 +166,54 @@ async def main():
     
     next_shot_time = 0
     wave = 1
-    wave_time = 30000
+    wave_time = 20000
     
     fireballs = []
     running = True
+    upgrade_menu = False
+    game_time = 0
 
     spawner(wave, enemies)
+    
     while running:
+        while upgrade_menu:
+                    for event in pygame.event.get():
+                        if event.type == pygame.QUIT:
+                            upgrade_menu = False
+                            running = False
+                    screen.fill((0, 0, 0))
+                    keys = pygame.key.get_pressed()
+                    if keys[pygame.K_1]:
+                        projectiles, pierce = upgrade_damage(projectiles, pierce)
+                        upgrade_menu = False
+                        
+                    elif keys[pygame.K_2]:
+                        speed, max_speed, fire_rate = upgrade_speed(speed, max_speed, fire_rate)
+                        upgrade_menu = False
+                        
+                    elif keys[pygame.K_3]:
+                        fire_mage.health = upgrade_health(fire_mage.health)
+                        upgrade_menu = False
+                        
+            
+                    font = pygame.font.Font(None, 74)
+                    text1 = font.render("Press 1 to Upgrade Damage", True, (255, 0, 0))
+                    text2 = font.render("Press 2 to Upgrade Speed", True, (255, 0, 0))
+                    text3 = font.render("Press 3 to Upgrade Health", True, (255, 0, 0))
+                    screen.blit(text1, (WIDTH/2 - text1.get_width()/2, HEIGHT/2 - text1.get_height()/2 - 100))
+                    screen.blit(text2, (WIDTH/2 - text2.get_width()/2, HEIGHT/2 - text2.get_height()/2))
+                    screen.blit(text3, (WIDTH/2 - text3.get_width()/2, HEIGHT/2 - text3.get_height()/2 + 100))
+                    pygame.display.flip()
+                    clock.tick(60)
+                    await asyncio.sleep(0)  # Allow other tasks to run  
         if fire_mage.health <= 0:
             running = False
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
 
-        time = pygame.time.get_ticks()
-        if time >= wave_time*wave:
+        
+        if game_time >= wave_time*wave:
             wave += 1
             spawner(wave, enemies)
             
@@ -182,7 +230,10 @@ async def main():
         xacceleration = pygame.math.Vector2(0, 0)
         if keys[pygame.K_w]:
             yacceleration = pygame.math.Vector2(0, -1) * speed
+        if keys[pygame.K_c]:
+            upgrade_menu = True
             
+
         if keys[pygame.K_s]:
             yacceleration = pygame.math.Vector2(0, 1) * speed
         if keys[pygame.K_a]:
@@ -207,8 +258,10 @@ async def main():
         pygame.display.flip()
         
 
-        clock.tick(120) 
+        game_time += clock.tick(60) 
         await asyncio.sleep(0)  # Allow other tasks to run
+    
+    
     dead = True
     reset = False
     while dead:
