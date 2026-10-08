@@ -16,6 +16,7 @@ class FireMage:
         self.direction = pygame.math.Vector2(1, 0)
         self.size = 25
         self.health = health
+        self.max_health = health
 
     def shoot(self, num_fireballs, pierce):
         fireballs.append(Fireball(self.pos.x, self.pos.y, self.direction, pierce))
@@ -69,7 +70,7 @@ class enemy:
         self.size = 10*health
         self.state = 'PATROL'
         self.health = health
-        self.color = (255, 255, 255)
+        self.color = (0, 55, 255)
         self.knockback = 50
 
     def move(self):
@@ -109,13 +110,13 @@ class enemy:
             self.color,
             pygame.Rect((int(self.pos.x), int(self.pos.y)), (self.size, self.size))
         )
-        pygame.draw.line(
-            screen,
-            (0, 255, 0),
-            (int(self.pos.x + self.size / 2), int(self.pos.y + self.size / 2)),
-            (int(self.pos.x + self.size / 2 + self.direction.x * 20), int(self.pos.y + self.size / 2 + self.direction.y * 20)),
-            2
-        )
+        #pygame.draw.line(
+        #    screen,
+        #    (0, 255, 0),
+        #   (int(self.pos.x + self.size / 2), int(self.pos.y + self.size / 2)),
+        #    (int(self.pos.x + self.size / 2 + self.direction.x * 20), int(self.pos.y + self.size / 2 + self.direction.y * 20)),
+        #   2
+        #)
 
 def spawner(wave, enemies):
     
@@ -145,9 +146,10 @@ def upgrade_speed(speed, max_speed, fire_rate):
     fire_rate *= .9
     return speed, max_speed, fire_rate
 
-def upgrade_health(health):
+def upgrade_health(health, max_health):
     health += 1
-    return health
+    max_health += 1
+    return health, max_health
 
 async def main():
     global fireballs, screen, enemies, exp_orbs
@@ -195,7 +197,7 @@ async def main():
                         upgrade_menu = False
                         
                     elif keys[pygame.K_3]:
-                        fire_mage.health = upgrade_health(fire_mage.health)
+                        fire_mage.health, fire_mage.max_health = upgrade_health(fire_mage.health, fire_mage.max_health)
                         upgrade_menu = False
                         
             
@@ -235,12 +237,10 @@ async def main():
         acceleration = drag*velocity
         yacceleration = pygame.math.Vector2(0, 0)
         xacceleration = pygame.math.Vector2(0, 0)
-        if keys[pygame.K_w]:
-            yacceleration = pygame.math.Vector2(0, -1) * speed
         if keys[pygame.K_c]:
             upgrade_menu = True
-            
-
+        if keys[pygame.K_w]:
+            yacceleration = pygame.math.Vector2(0, -1) * speed
         if keys[pygame.K_s]:
             yacceleration = pygame.math.Vector2(0, 1) * speed
         if keys[pygame.K_a]:
@@ -259,6 +259,9 @@ async def main():
         screen.fill((0, 155, 50))
         
         fire_mage.draw(screen)
+        offset = pygame.math.Vector2(-50, +50)
+        pygame.draw.rect(screen, (255, 0, 0), pygame.Rect((int(fire_mage.pos.x + offset.x), int(fire_mage.pos.y + offset.y)), (100, 10)))
+        pygame.draw.rect(screen, (0, 255, 0), pygame.Rect((int(fire_mage.pos.x + offset.x), int(fire_mage.pos.y + offset.y)), (int(100 * fire_mage.health / fire_mage.max_health), 10)))
         for orb in exp_orbs:
             pygame.draw.circle(screen, (255, 255, 0), (int(orb.x), int(orb.y)), 5)
             if fire_mage.pos.distance_to(orb) < fire_mage.size + 5:
