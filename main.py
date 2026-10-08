@@ -50,6 +50,7 @@ class Fireball:
         for target in targets:
             if self.pos.distance_to(target.pos) < self.size + target.size:
                 target.health -= 1
+                exp_orbs.append(pygame.math.Vector2(random.uniform(target.pos.x - target.size, target.pos.x + target.size), random.uniform(target.pos.y - target.size, target.pos.y + target.size)))
                 target.size = 10 * target.health
                 if target.health <= 0:
                     targets.remove(target)
@@ -141,7 +142,7 @@ def upgrade_speed(speed, max_speed, fire_rate):
     speed += .06
     max_speed += .5
 
-    fire_rate -= .1
+    fire_rate *= .9
     return speed, max_speed, fire_rate
 
 def upgrade_health(health):
@@ -149,8 +150,9 @@ def upgrade_health(health):
     return health
 
 async def main():
-    global fireballs, screen, enemies
+    global fireballs, screen, enemies, exp_orbs
     enemies = []
+    exp_orbs = []
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("Fire Mage")
@@ -163,6 +165,7 @@ async def main():
     fire_rate = 1
     projectiles = 1
     pierce = 1
+    exp = 0
     
     next_shot_time = 0
     wave = 1
@@ -208,6 +211,10 @@ async def main():
                     await asyncio.sleep(0)  # Allow other tasks to run  
         if fire_mage.health <= 0:
             running = False
+
+        if exp >= 5:
+            upgrade_menu = True
+            exp -= 5
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -252,6 +259,11 @@ async def main():
         screen.fill((0, 155, 50))
         
         fire_mage.draw(screen)
+        for orb in exp_orbs:
+            pygame.draw.circle(screen, (255, 255, 0), (int(orb.x), int(orb.y)), 5)
+            if fire_mage.pos.distance_to(orb) < fire_mage.size + 5:
+                exp += 1
+                exp_orbs.remove(orb)
         for enemy in enemies:
             enemy.vision(fire_mage)
             enemy.draw()    
