@@ -67,7 +67,7 @@ class enemy:
         self.state = 'PATROL'
         self.health = health
         self.color = (255, 255, 255)
-        self.knockback = 5
+        self.knockback = 50
 
     def move(self):
         if self.state == 'PATROL':
@@ -92,7 +92,7 @@ class enemy:
             self.state = 'CHASE'
             self.direction = distance.normalize()
             if distance.length() < 20:
-                FireMage.pos += self.direction * -self.knockback
+                FireMage.pos += distance.normalize() * self.knockback
         else:
             self.state = 'PATROL'
             self.direction = self.velocity.normalize()
@@ -124,7 +124,7 @@ def spawner(wave, enemies):
         else:
             x = WIDTH
             direction = math.pi
-        speed = random.uniform(1, 3)
+        speed = .5
         
         health = random.randint(1, 3)
         enemies.append(enemy(x, y, speed, direction, health))
@@ -145,6 +145,7 @@ async def main():
     fire_rate = 1
     next_shot_time = 0
     wave = 1
+    wave_time = 30000
     
     fireballs = []
     running = True
@@ -155,11 +156,11 @@ async def main():
             if event.type == pygame.QUIT:
                 running = False
 
-        last_spawn_time = pygame.time.get_ticks()
-        if pygame.time.get_ticks() - last_spawn_time > 5000:
-            spawner(wave, enemies)
-            last_spawn_time = pygame.time.get_ticks()
+        time = pygame.time.get_ticks()
+        if time >= wave_time*wave:
             wave += 1
+            spawner(wave, enemies)
+            
         
 
         keys = pygame.key.get_pressed()
