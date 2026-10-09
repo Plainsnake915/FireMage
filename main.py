@@ -11,12 +11,13 @@ WIDTH, HEIGHT = 900, 600
 
 
 class FireMage:
-    def __init__(self, x, y, health):
+    def __init__(self, x, y, health, sprite):
         self.pos = pygame.math.Vector2(x, y)
         self.direction = pygame.math.Vector2(1, 0)
         self.size = 25
         self.health = health
         self.max_health = health
+        self.image = pygame.transform.scale(sprite, (64, 64))
 
     def shoot(self, num_fireballs, pierce):
         fireballs.append(Fireball(self.pos.x, self.pos.y, self.direction, pierce))
@@ -25,13 +26,9 @@ class FireMage:
             fireball = Fireball(self.pos.x, self.pos.y, direction, pierce)
             fireballs.append(fireball)
     def draw(self, screen):
-        #screen.blit(self.image, (self.x, self.y))
-        
-        pygame.draw.polygon(screen, (255, 0, 0), [
-                (self.pos + self.size * self.direction.rotate(-140)),
-                (self.pos + self.size * self.direction.rotate(140)),
-                (self.pos + self.size * self.direction),
-            ],)
+        angle = -math.degrees(math.atan2(self.direction.y, self.direction.x)) - 90
+        rotated_image = pygame.transform.rotate(self.image, angle)
+        screen.blit(rotated_image, rotated_image.get_rect(center=self.pos))
         for fireball in fireballs:
             fireball.update(enemies)
             fireball.draw(screen)
@@ -52,9 +49,11 @@ class Fireball:
             if self.pos.distance_to(target.pos) < self.size + target.size:
                 target.health -= 1
                 exp_orbs.append(pygame.math.Vector2(random.uniform(target.pos.x - target.size, target.pos.x + target.size), random.uniform(target.pos.y - target.size, target.pos.y + target.size)))
-                target.size = 10 * target.health
                 if target.health <= 0:
                     targets.remove(target)
+                else:
+                    target.size = 10 * target.health
+                    target.resize_image()
                 self.pierce -= 1
         if self.pierce <= 0:
             fireballs.remove(self)
@@ -63,15 +62,22 @@ class Fireball:
         pygame.draw.circle(screen, (255, 165, 0), (int(self.pos.x), int(self.pos.y)), self.size)
 
 class enemy:
-    def __init__(self, x, y, speed, direction, health):
+    def __init__(self, x, y, speed, direction, health, sprite):
         self.pos = pygame.math.Vector2(x, y)
         self.velocity = pygame.math.Vector2(speed * math.cos(direction), speed * math.sin(direction))
         self.direction = pygame.math.Vector2(math.cos(direction), math.sin(direction))
         self.size = 10*health
+        self.sprite = sprite
+        self.resize_image()
         self.state = 'PATROL'
         self.health = health
         self.color = (0, 55, 255)
         self.knockback = 50
+
+    def resize_image(self):
+        sprite_width = max(1, self.size * 3)
+        sprite_height = max(1, round(sprite_width * self.sprite.get_height() / self.sprite.get_width()))
+        self.image = pygame.transform.scale(self.sprite, (sprite_width, sprite_height))
 
     def move(self):
         if self.state == 'PATROL':
@@ -102,14 +108,10 @@ class enemy:
             self.state = 'PATROL'
             self.direction = self.velocity.normalize()
         
-    def draw(self):
+    def draw(self, screen):
         self.move()
         self.bounce()
-        pygame.draw.rect(
-            screen,
-            self.color,
-            pygame.Rect((int(self.pos.x), int(self.pos.y)), (self.size, self.size))
-        )
+        screen.blit(self.image, self.image.get_rect(center=self.pos))
         #pygame.draw.line(
         #    screen,
         #    (0, 255, 0),
@@ -118,7 +120,7 @@ class enemy:
         #   2
         #)
 
-def spawner(wave, enemies):
+def spawner(wave, enemies, slime_sprite):
     
     for _ in range(wave*5):
         x = random.randint(0, WIDTH)
@@ -132,7 +134,7 @@ def spawner(wave, enemies):
         speed = .5 + .2*wave
         
         health = random.randint(1, 3)
-        enemies.append(enemy(x, y, speed, direction, health))
+        enemies.append(enemy(x, y, speed, direction, health, slime_sprite))
     
 def upgrade_damage(projectiles, pierce):
     projectiles += 1
@@ -159,7 +161,9 @@ async def main():
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("Slime Fighter")
     clock = pygame.time.Clock()
-    fire_mage = FireMage(WIDTH//2 - 50, HEIGHT//2 - 50, 3)
+    mage_sprite = pygame.image.load("assets/mage.png").convert_alpha()
+    slime_sprite = pygame.image.load("assets/slime.png").convert_alpha()
+    fire_mage = FireMage(WIDTH//2 - 50, HEIGHT//2 - 50, 3, mage_sprite)
     velocity = pygame.math.Vector2(0, 0)
     drag = -.03
     max_speed = 1
@@ -178,7 +182,7 @@ async def main():
     upgrade_menu = False
     game_time = 0
 
-    spawner(wave, enemies)
+    spawner(wave, enemies, slime_sprite)
     
     while running:
         while upgrade_menu:
@@ -224,7 +228,7 @@ async def main():
         
         if game_time >= wave_time*wave:
             wave += 1
-            spawner(wave, enemies)
+            spawner(wave, enemies, slime_sprite)
             
         
 
@@ -296,7 +300,7 @@ async def main():
                 exp_orbs.remove(orb)
         for enemy in enemies:
             enemy.vision(fire_mage)
-            enemy.draw()    
+            enemy.draw(screen)
         for line_number, line in enumerate(hud_lines):
             text = font.render(line, True, (255, 255, 255))
             screen.blit(text, (10, 10 + line_number * 26))
