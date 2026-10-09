@@ -157,7 +157,7 @@ async def main():
     exp_orbs = []
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("Fire Mage")
+    pygame.display.set_caption("Slime Fighter")
     clock = pygame.time.Clock()
     fire_mage = FireMage(WIDTH//2 - 50, HEIGHT//2 - 50, 3)
     velocity = pygame.math.Vector2(0, 0)
@@ -186,7 +186,7 @@ async def main():
                         if event.type == pygame.QUIT:
                             upgrade_menu = False
                             running = False
-                    screen.fill((0, 0, 0))
+                    screen.fill((100, 100, 255))
                     keys = pygame.key.get_pressed()
                     if keys[pygame.K_1]:
                         projectiles, pierce = upgrade_damage(projectiles, pierce)
@@ -202,9 +202,9 @@ async def main():
                         
             
                     font = pygame.font.Font(None, 74)
-                    text1 = font.render("Press 1 to Upgrade Damage", True, (255, 0, 0))
-                    text2 = font.render("Press 2 to Upgrade Speed", True, (255, 0, 0))
-                    text3 = font.render("Press 3 to Upgrade Health", True, (255, 0, 0))
+                    text1 = font.render("Press 1 to Upgrade Damage", True, (0, 255, 0))
+                    text2 = font.render("Press 2 to Upgrade Speed", True, (0, 255, 0))
+                    text3 = font.render("Press 3 to Upgrade Health", True, (0, 255, 0))
                     screen.blit(text1, (WIDTH/2 - text1.get_width()/2, HEIGHT/2 - text1.get_height()/2 - 100))
                     screen.blit(text2, (WIDTH/2 - text2.get_width()/2, HEIGHT/2 - text2.get_height()/2))
                     screen.blit(text3, (WIDTH/2 - text3.get_width()/2, HEIGHT/2 - text3.get_height()/2 + 100))
@@ -256,12 +256,39 @@ async def main():
         if velocity.length() > max_speed:
             velocity.scale_to_length(max_speed)
         fire_mage.pos += velocity
+        if fire_mage.pos.x < 0:
+            fire_mage.pos.x = 0
+            velocity.x = 0
+        elif fire_mage.pos.x > WIDTH:
+            fire_mage.pos.x = WIDTH
+            velocity.x = 0
+        if fire_mage.pos.y < 0:
+            fire_mage.pos.y = 0
+            velocity.y = 0
+        elif fire_mage.pos.y > HEIGHT:
+            fire_mage.pos.y = HEIGHT
+            velocity.y = 0
         screen.fill((0, 155, 50))
         
         fire_mage.draw(screen)
         offset = pygame.math.Vector2(-50, +50)
         pygame.draw.rect(screen, (255, 0, 0), pygame.Rect((int(fire_mage.pos.x + offset.x), int(fire_mage.pos.y + offset.y)), (100, 10)))
         pygame.draw.rect(screen, (0, 255, 0), pygame.Rect((int(fire_mage.pos.x + offset.x), int(fire_mage.pos.y + offset.y)), (int(100 * fire_mage.health / fire_mage.max_health), 10)))
+        pygame.draw.rect(screen, (0, 0, 0), pygame.Rect((int(fire_mage.pos.x + offset.x), int(fire_mage.pos.y + offset.y)), (100, 10)), 2)
+
+        pygame.draw.rect(screen, (0, 0, 255), pygame.Rect((int(fire_mage.pos.x + offset.x), int(fire_mage.pos.y + offset.y)), (100*exp/5, 3)))
+
+        font = pygame.font.Font(None, 26)
+        hud_lines = (
+            f"Wave: {wave}",
+            f"Time: {game_time//1000}",
+            f"Exp: {exp}/5",
+            f"Health: {fire_mage.health}/{fire_mage.max_health}",
+            f"Damage: {projectiles} Fireballs, {pierce} Pierce",
+            f"Speed: {speed:.2f}, Max Speed: {max_speed:.2f}",
+            f"Fire Rate: {fire_rate:.2f}s"
+        )
+        
         for orb in exp_orbs:
             pygame.draw.circle(screen, (255, 255, 0), (int(orb.x), int(orb.y)), 5)
             if fire_mage.pos.distance_to(orb) < fire_mage.size + 5:
@@ -270,6 +297,9 @@ async def main():
         for enemy in enemies:
             enemy.vision(fire_mage)
             enemy.draw()    
+        for line_number, line in enumerate(hud_lines):
+            text = font.render(line, True, (255, 255, 255))
+            screen.blit(text, (10, 10 + line_number * 26))
         pygame.display.flip()
         
 
